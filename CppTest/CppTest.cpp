@@ -7,6 +7,8 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <regex>
+#include <iterator>
 #include <winsock2.h>
 #include <iphlpapi.h>
 #include <windows.h>
@@ -17,22 +19,21 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "Dnsapi.lib")
 
+void func1();
+
 std::wstring GetLastErrorMsg();
 BOOL CheckInternetConnectivity();
+void threadFunc(HANDLE timer);
 
-int main()
-{
-    CheckInternetConnectivity();
-    int j = 1;
-    for (;;) {
-        j = j * 2;
-    }
+int main() {
+    func1();
+}
 
-
+void func1() {
     HANDLE hWaitableTimer = CreateWaitableTimer(NULL, FALSE, NULL);
     LARGE_INTEGER dueTime;
     dueTime.QuadPart = 0;
-    BOOL result = SetWaitableTimer(hWaitableTimer, &dueTime, 6000, NULL, NULL, FALSE);
+    BOOL result = SetWaitableTimer(hWaitableTimer, &dueTime, 5000, NULL, NULL, FALSE);
     if (!result) {
         std::cerr << "Failed to set waitable timer" << std::endl;
     }
@@ -70,6 +71,7 @@ int main()
         case WAIT_IO_COMPLETION:
             std::cout << i << " An IO operation is completed." << std::endl;
             break;
+
         case WAIT_OBJECT_0:
             std::cout << i << " internet interval reached, checking for internet connectivity" << std::endl;
             connectivity = CheckInternetConnectivity();
@@ -106,6 +108,7 @@ int main()
         std::cout << "error exit" << std::endl;
     }
 }
+
 
 DNS_QUERY_COMPLETION_ROUTINE DnsQueryCompletionRoutine;
 void __stdcall DnsQueryCompletionRoutine(PVOID pQueryContext, PDNS_QUERY_RESULT pQueryResults)
@@ -150,7 +153,7 @@ BOOL CheckInternetConnectivity() {
     DNS_QUERY_REQUEST request;
     ZeroMemory(&request, sizeof(request));
     request.Version = DNS_QUERY_REQUEST_VERSION1;
-    request.QueryName = L"baidu.com";
+    request.QueryName = L"-.-";
     request.QueryType = DNS_TYPE_A;
     request.QueryOptions = DNS_QUERY_BYPASS_CACHE;
     request.pDnsServerList = &servers;
@@ -195,4 +198,67 @@ std::wstring GetLastErrorMsg() {
     auto errMsg = std::wstring((LPTSTR)lpMsgBuf);
 
     return errMsg;
+}
+
+
+
+
+void func2() {
+    for (std::string uriString; std::getline(std::cin, uriString); uriString != "") {
+
+        std::string scheme;
+        std::string host;
+        int port = 0;
+        std::string path;
+
+        bool ipv4;
+        bool ipv6;
+
+        // get scheme
+        std::regex schemeRegex(R"d(^(\w+)://)d");
+        auto begin = std::sregex_iterator(uriString.begin(), uriString.end(), schemeRegex);
+        auto end = std::sregex_iterator();
+        if (begin != end) {
+            auto match = *begin;
+            scheme = match[1].str();
+
+            uriString = std::regex_replace(uriString, schemeRegex, "");
+        }
+
+        // get path
+        std::regex pathRegex(R"d(/.*$)d");
+        begin = std::sregex_iterator(uriString.begin(), uriString.end(), pathRegex);
+        if (begin != end) {
+            auto match = *begin;
+            path = match.str();
+            uriString = std::regex_replace(uriString, pathRegex, "");
+        }
+
+        // get port
+        std::regex portRegex(R"d(:(\d+)$)d");
+        begin = std::sregex_iterator(uriString.begin(), uriString.end(), portRegex);
+        if (begin != end) {
+            auto match = *begin;
+            auto portStr = match[1].str();
+            port = atoi(portStr.c_str());
+            uriString = std::regex_replace(uriString, portRegex, "");
+        }
+
+        host = uriString;
+
+        std::regex ipv4Regex(R"d(^(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}))d");
+        ipv4 = std::regex_match(host, ipv4Regex);
+
+        // So very simple and not at all working IPV6 check.
+        ipv6 = host.find(':') != std::string::npos;
+
+        std::cout << std::endl;
+        std::cout << "scheme: " << scheme << std::endl;
+        std::cout << "host: " << host << std::endl;
+        std::cout << "port: " << port << std::endl;
+        std::cout << "path: " << path << std::endl;
+        std::cout << "is ipv4: " << ipv4 << std::endl;
+        std::cout << "is ipv6: " << ipv6 << std::endl;
+        std::cout << std::endl;
+    }
 }

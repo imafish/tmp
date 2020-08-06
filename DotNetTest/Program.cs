@@ -8,9 +8,6 @@ namespace DotNetTest
     {
         static void Main(string[] args)
         {
-
-
-
             foreach (NetworkInterface netif in NetworkInterface.GetAllNetworkInterfaces())
             {
                 Console.WriteLine("Network Interface: {0}", netif.Name);
